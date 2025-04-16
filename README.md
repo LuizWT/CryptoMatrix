@@ -143,10 +143,10 @@
 
 <div class="section">
   <h3>5. Observações Finais</h3>
-  <p>
-    - A utilização de tokens especiais para espaços, com prefixos aleatórios (de A-Z), torna a mensagem criptografada menos previsível.<br>
-    - A reinicialização da pool de posições garante que mensagens com muitas repetições de um mesmo caractere possam ser criptografadas sem perder a diversidade de posições.<br>
-  </p>
+  <ul>
+    <li>A utilização de tokens especiais para espaços, com prefixos aleatórios (de A-Z), torna a mensagem criptografada menos previsível.</li>
+    <li>A reinicialização da pool de posições garante que mensagens com muitas repetições de um mesmo caractere possam ser criptografadas sem perder a diversidade de posições.</li>
+  </ul>
 </div>
 
 ### Instalação

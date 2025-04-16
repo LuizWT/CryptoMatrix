@@ -37,17 +37,10 @@
 
 <div class="section">
   <h3>3. Explicação Detalhada do Código</h3>
-
   <h4>3.1 Função <code>generate_matrix</code></h4>
-  <pre><code>def generate_matrix(key, size=7):
-    alphabet = list(string.ascii_uppercase + "Ç")
-    random.seed(key)  # Usa a chave para definir a semente do gerador de números aleatórios
-    while len(alphabet) < size * size:
-        alphabet += alphabet  # Duplicação da lista para garantir que haja caracteres suficientes para preencher a matriz (total de size*size elementos)
-    random.shuffle(alphabet)  # Embaralha a lista de caracteres com base na semente definida
-    matrix = [alphabet[i * size:(i + 1) * size] for i in range(size)]  # Divide a lista embaralhada em "size" sublistas
-    return matrix</code></pre>
-  
+  <img src="https://github.com/user-attachments/assets/4044dfbf-e091-42ed-ae93-e079350dd065"></img>
+  <br>
+  <br>
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -67,12 +60,10 @@
       <strong>Saída:</strong> Retorna a matriz gerada (lista de listas representando as linhas da matriz).
     </li>
   </ul>
-
   <h4>3.2 Função <code>print_matrix</code></h4>
-  <pre><code>def print_matrix(matrix):
-    for i, row in enumerate(matrix):
-        print(f"{i+1}: " + " ".join(row))</code></pre>
-  
+  <img src="https://github.com/user-attachments/assets/815da89a-53bc-4311-b046-661ea9e91e37"></img>
+  <br>
+  <br>
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -85,40 +76,10 @@
       <strong>Saída:</strong> Exibição da matriz no console de forma organizada.
     </li>
   </ul>
-
   <h4>3.3 Função <code>encrypt</code></h4>
-  <pre><code>def encrypt(message, matrix):
-    encrypted = ""
-    # Cria um dicionário com todas as posições disponíveis para cada caractere na matriz.
-    positions_full = {}
-    for i, row in enumerate(matrix):
-        for j, cell in enumerate(row):
-            if cell not in positions_full:
-                positions_full[cell] = []
-            positions_full[cell].append((i+1, j+1))
-    # Cria uma pool para uso durante a criptografia (cópia das posições originais)
-    positions_pool = {char: pos_list.copy() for char, pos_list in positions_full.items()}
-    for char in message.upper():
-        if char == ' ':
-            # Para espaços, gera um token: um prefixo aleatório (letra de A-Z) seguido de dois dígitos aleatórios.
-            prefix = random.choice(string.ascii_uppercase)
-            token = prefix + str(random.randint(11, 77))
-            encrypted += token
-        else:
-            if char in positions_pool:
-                # Se a pool de posições para o caractere estiver esgotada, reinicializa-a com as posições originais.
-                if not positions_pool[char]:
-                    positions_pool[char] = positions_full[char].copy()
-                # Seleciona aleatoriamente uma posição da pool e a remove.
-                r, c = random.choice(positions_pool[char])
-                encrypted += f"{r}{c}"
-                positions_pool[char].remove((r, c))
-            else:
-                # Se o caractere não existir na matriz, adiciona um token padrão "XX".
-                encrypted += "XX"
-    return encrypted
-  </code></pre>
-  
+  <img src="https://github.com/user-attachments/assets/e430f69c-c1a6-4a87-aee0-381ed54e0e42"></img>
+  <br>
+  <br>
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -142,26 +103,10 @@
       <strong>Saída:</strong> Mensagem criptografada, composta por tokens representando as posições ou espaços.
     </li>
   </ul>
-
   <h4>3.4 Função <code>decrypt</code></h4>
-  <pre>
-def decrypt(encrypted_text, matrix):
-    decrypted = ""
-    i = 0
-    while i < len(encrypted_text):
-        char = encrypted_text[i]
-        # Se o token começa com uma letra (A-Z) e os próximos dois caracteres são dígitos, é um espaço
-        if char in string.ascii_uppercase and i + 2 < len(encrypted_text) and encrypted_text[i+1:i+3].isdigit():
-            decrypted += ' '
-            i += 3
-        else:
-            token = encrypted_text[i:i+2]
-            row = int(token[0]) - 1
-            col = int(token[1]) - 1
-            decrypted += matrix[row][col]
-            i += 2
-    return decrypted
-  </pre>
+  <img src="https://github.com/user-attachments/assets/08554779-d3b0-445d-8734-1e40d47ebba9"></img>
+  <br>
+  <br>
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li><strong>Entrada:</strong> <code>encrypted_text</code>: texto criptografado; <code>matrix</code>: matriz utilizada na criptografia.</li>
@@ -173,20 +118,10 @@ def decrypt(encrypted_text, matrix):
     </li>
     <li><strong>Saída:</strong> Retorna a mensagem original descriptografada.</li>
   </ul>
-
   <h4>3.5 Função <code>main</code></h4>
-  <pre>
-def main():
-    key = input("Digite a chave para gerar a matriz: ")
-    matrix = generate_matrix(key)
-    print("Matriz utilizada:")
-    print_matrix(matrix)
-    message = input("Digite a mensagem que será criptografada: ")
-    encrypted = encrypt(message, matrix)
-    print(f"Mensagem criptografada: {encrypted}")
-    decrypted = decrypt(encrypted, matrix)
-    print(f"Mensagem descriptografada: {decrypted}")
-  </pre>
+  <img src="https://github.com/user-attachments/assets/65bfc2fa-2514-4e14-b96e-a9bee889cde3"></img>
+  <br>
+  <br>
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>Solicita a chave e gera a matriz determinística.</li>
@@ -229,3 +164,12 @@ Acesse o diretório:
 Execute a ferramenta:
 
     python3 cryptoMatrix.py
+<hr>
+
+## Apoio ao Projeto
+
+Se você quiser contribuir com o projeto, sinta-se à vontade para abrir Issues ou fazer Pull Requests.
+  
+<hr>
+
+Este projeto está licenciado sob a GNU Affero General Public License v3.0 (Modificada)

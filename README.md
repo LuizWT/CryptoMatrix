@@ -22,7 +22,7 @@
       </ul>
     </li>
     <li>
-      <strong>Uso da Chave:</strong> A chave fornecida pelo usuário é usada para definir a semente do gerador de números aleatórios (<code>random.seed(key)</code>), garantindo que a matriz gerada seja a mesma para uma mesma chave em processos distintos.
+      <strong>Uso da Chave:</strong> A chave fornecida pelo usuário é usada para definir a SEED do gerador de números aleatórios (<code>random.seed(key)</code>), garantindo que a matriz gerada seja a mesma para uma mesma chave em processos distintos.
     </li>
     <li>
       <strong>Aplicações Reais:</strong>
@@ -50,7 +50,7 @@
       <strong>Processamento:</strong>
       <ol>
         <li>Cria uma lista contendo as letras de A-Z e a letra <code>"Ç"</code>.</li>
-        <li>Define a semente do gerador aleatório com a chave para garantir um embaralhamento determinístico.</li>
+        <li>Define a SEED do gerador aleatório com a chave para garantir um embaralhamento determinístico.</li>
         <li>Duplica os elementos da lista se necessário para preencher a matriz.</li>
         <li>Embaralha a lista.</li>
         <li>Divide a lista embaralhada em sublistas de tamanho <code>size</code>.</li>

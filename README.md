@@ -155,7 +155,7 @@
 > Requer Python 3.6 ou superior para garantir compatibilidade total com os recursos utilizados no código
 Clone o repositório:
 
-    git clone https://github.com/LuizWT/CryptoMatrix.git
+    git clone https://github.com/seu-usuario/CryptoMatrix.git
 
 Acesse o diretório:
 

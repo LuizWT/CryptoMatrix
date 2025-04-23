@@ -39,8 +39,8 @@
   <h3>3. Explicação Detalhada do Código</h3>
   <h4>3.1 Função <code>generate_matrix</code></h4>
   <img src="https://github.com/user-attachments/assets/4044dfbf-e091-42ed-ae93-e079350dd065"></img>
-  <br>
-  <br>
+  <br />
+  <br />
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -64,8 +64,8 @@
   </ul>
   <h4>3.2 Função <code>print_matrix</code></h4>
   <img src="https://github.com/user-attachments/assets/815da89a-53bc-4311-b046-661ea9e91e37"></img>
-  <br>
-  <br>
+  <br />
+  <br />
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -80,8 +80,8 @@
   </ul>
   <h4>3.3 Função <code>encrypt</code></h4>
   <img src="https://github.com/user-attachments/assets/e430f69c-c1a6-4a87-aee0-381ed54e0e42"></img>
-  <br>
-  <br>
+  <br />
+  <br />
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -107,8 +107,8 @@
   </ul>
   <h4>3.4 Função <code>decrypt</code></h4>
   <img src="https://github.com/user-attachments/assets/08554779-d3b0-445d-8734-1e40d47ebba9"></img>
-  <br>
-  <br>
+  <br />
+  <br />
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li><strong>Entrada:</strong> <code>encrypted_text</code>: texto criptografado; <code>matrix</code>: matriz utilizada na criptografia.</li>
@@ -122,8 +122,8 @@
   </ul>
   <h4>3.5 Função <code>validate_message</code></h4>
   <img src="https://github.com/user-attachments/assets/a074c118-72f7-4de0-b631-dd5814fa26b6"></img>
-  <br>
-  <br>
+  <br />
+  <br />
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -147,8 +147,8 @@
   </ul>
   <h4>3.6 Função <code>clear_terminal</code></h4>
   <img src="https://github.com/user-attachments/assets/400165ca-ab23-4f2a-8be1-6f5199c1f52c"></img>
-  <br>
-  <br>
+  <br />
+  <br />
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -171,8 +171,8 @@
   </ul>
   <h4>3.7 Função <code>main</code></h4>
   <img src="https://github.com/user-attachments/assets/65bfc2fa-2514-4e14-b96e-a9bee889cde3"></img>
-  <br>
-  <br>
+  <br />
+  <br />
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>Solicita a chave e gera a matriz determinística.</li>
@@ -216,12 +216,12 @@ Acesse o diretório:
 Execute a ferramenta:
 
     python3 cryptoMatrix.py
-<hr>
+<hr />
 
 ## Apoio ao Projeto
 
 Se você quiser contribuir com o projeto, sinta-se à vontade para abrir Issues ou fazer Pull Requests.
   
-<hr>
+<hr />
 
 Este projeto está licenciado sob a GNU Affero General Public License v3.0 (Modificada)

@@ -112,7 +112,7 @@ def main():
         print(f"{YELLOW}{'=' * 18} ATENÇÃO {'=' * 18}")
         print(f"{BLUE}Caracteres permitidos: A–Z  |  Ç  |  Espaços")
         print(f"{YELLOW}{'=' * 45}")
-        print(f"\nChave utilizada:{RESET} {key}\n{YELLOW}Matriz utilizada:{RESET} ")
+        print(f"\n{YELLOW}Matriz utilizada:{RESET} ")
         print_matrix(matrix)
         message = input(f"\n{YELLOW}Digite a mensagem:{RESET} ").strip().upper()
         if validate_message(message):

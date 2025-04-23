@@ -44,20 +44,22 @@
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
-      <strong>Entrada:</strong> <code>key</code> (chave para definir o estado do gerador aleatório) e <code>size</code> (tamanho da matriz, padrão 7).
+      <strong>Entrada:</strong> <code>key</code> (chave para definir o estado do gerador aleatório) e <code>size</code> (dimensão da matriz quadrada, padrão 7).
     </li>
     <li>
       <strong>Processamento:</strong>
       <ol>
-        <li>Cria uma lista contendo as letras de A-Z e a letra <code>"Ç"</code>.</li>
-        <li>Define a SEED do gerador aleatório com a chave para garantir um embaralhamento determinístico.</li>
-        <li>Duplica os elementos da lista se necessário para preencher a matriz.</li>
-        <li>Embaralha a lista.</li>
-        <li>Divide a lista embaralhada em sublistas de tamanho <code>size</code>.</li>
+        <li>Cria <code>base_alphabet</code> contendo letras A–Z e a letra <code>"Ç"</code>.</li>
+        <li>Define a semente do gerador aleatório com <code>random.seed(key)</code> para garantir determinismo.</li>
+        <li>Inicializa <code>matrix_list</code> com uma cópia de <code>base_alphabet</code>, assegurando ao menos uma de cada letra.</li>
+        <li>Duplica <code>base_alphabet</code> até que <code>matrix_list</code> tenha pelo menos <code>size×size</code> elementos.</li>
+        <li>Embaralha <code>matrix_list</code> e trunca para o tamanho exato de <code>size×size</code>.</li>
+        <li>Verifica letras faltantes em <code>matrix_list</code> e substitui posições duplicadas para garantir presença de todas as letras.</li>
+        <li>Divide <code>matrix_list</code> em sublistas de comprimento <code>size</code>, formando a matriz final.</li>
       </ol>
     </li>
     <li>
-      <strong>Saída:</strong> Retorna a matriz gerada (lista de listas representando as linhas da matriz).
+      <strong>Saída:</strong> Retorna a matriz gerada — uma lista de listas (<code>list[list[str]]</code>) com <code>size</code> linhas e <code>size</code> colunas.
     </li>
   </ul>
   <h4>3.2 Função <code>print_matrix</code></h4>
@@ -118,7 +120,52 @@
     </li>
     <li><strong>Saída:</strong> Retorna a mensagem original descriptografada.</li>
   </ul>
-  <h4>3.5 Função <code>main</code></h4>
+  <br>
+  <h4>3.5 Função <code>validate_message</code></h4>
+  <p><strong>Objetivo e Funcionamento:</strong></p>
+  <ul>
+    <li>
+      <strong>Entrada:</strong> <code>msg</code> (Mensagem que será validada pela função antes de ser criptografada).
+    </li>
+    <li>
+      <strong>Processamento:</strong>
+      <ol>
+        <li>Aplica <code>re.fullmatch(r"[A-ZÇ ]+", msg)</code> para verificar se <code>msg</code> contém apenas:</li>
+        <ul>
+          <li>Letras maiúsculas A–Z</li>
+          <li>Cedilha <code>Ç</code></li>
+          <li>Espaços</li>
+        </ul>
+        <li>Retorna <code>True</code> se corresponder ao padrão, caso contrário <code>False</code>.</li>
+      </ol>
+    </li>
+    <li>
+      <strong>Saída:</strong> <code>bool</code> — <code>True</code> para mensagem válida; <code>False</code> caso haja qualquer outro caractere.
+    </li>
+  </ul>
+  <br>
+  <p>3.6 Função <code>clear_terminal</code></p>
+  <p><strong>Objetivo e Funcionamento:</strong></p>
+  <ul>
+    <li>
+      <strong>Entrada:</strong> nenhuma.
+    </li>
+    <li>
+      <strong>Processamento:</strong>
+      <ol>
+        <li>Verifica o sistema operacional via <code>os.name</code>:</li>
+        <ul>
+          <li>Se for <code>'nt'</code>, executa <code>cls</code> (Windows).</li>
+          <li>Senão, executa <code>clear</code> (Linux/macOS).</li>
+        </ul>
+        <li>Chama <code>os.system</code> com o comando apropriado para limpar o terminal.</li>
+      </ol>
+    </li>
+    <li>
+      <strong>Saída:</strong> nenhuma (efeito colateral no terminal).
+    </li>
+  </ul>
+  <h4>3.7 Função <code>main</code></h4>
   <img src="https://github.com/user-attachments/assets/65bfc2fa-2514-4e14-b96e-a9bee889cde3"></img>
   <br>
   <br>

@@ -1,10 +1,18 @@
 import random
 import string
+import re
+import os
+
+def validate_message(msg):
+    return bool(re.fullmatch(r"[A-ZÇ ]+", msg)) # Retorna TRUE se msg conter apenas letras que estejam dentro do range A–Z e/ou Ç (Inclui espaços também).
+
+def clear_terminal():
+    os.system('cls' if os.name == 'nt' else 'clear') # Verifica o sistema operacional para a utilização correta do comando
 
 def generate_matrix(key, size=7):
     # Alfabeto base (A-Z + Ç)
     base_alphabet = list(string.ascii_uppercase + "Ç")
-    random.seed(key)  # Usa a chave para semente fixa
+    random.seed(key)  # Usa a chave para SEED fixa
 
     # Cria lista inicial garantindo pelo menos uma de cada letra
     matrix_list = base_alphabet.copy()
@@ -96,7 +104,14 @@ def main():
     print("Matriz utilizada:")
     print_matrix(matrix)
     
-    message = input("Digite a mensagem que será criptografada: ")
+    while True:
+        clear_terminal()
+        print("Use somente:\nLetras A–Z\nÇ\nEspaços.\n\nMatriz utilizada:")
+        print_matrix(matrix)
+        message = input("Digite a mensagem (A–Z, Ç e espaços apenas): ").strip().upper()
+        if validate_message(message):
+            break
+    
     encrypted = encrypt(message, matrix)
     print(f"Mensagem criptografada: {encrypted}")
     

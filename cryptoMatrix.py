@@ -3,6 +3,11 @@ import string
 import re
 import os
 
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+PURPLE = "\033[35m"
+RESET = "\033[0m"
+
 def validate_message(msg):
     return bool(re.fullmatch(r"[A-ZÇ ]+", msg)) # Retorna TRUE se msg conter apenas letras que estejam dentro do range A–Z e/ou Ç (Inclui espaços também).
 
@@ -45,7 +50,7 @@ def generate_matrix(key, size=7):
 
 def print_matrix(matrix):
     for i, row in enumerate(matrix):
-        print(f"{i+1}: " + " ".join(row))
+        print(f"{BLUE}{i+1}:{RESET} " + " ".join(row))
 
 def encrypt(message, matrix):
     encrypted = ""
@@ -101,22 +106,24 @@ def decrypt(encrypted_text, matrix):
 def main():
     key = input("Digite a chave para gerar a matriz: ")
     matrix = generate_matrix(key)
-    print("Matriz utilizada:")
-    print_matrix(matrix)
-    
+
     while True:
         clear_terminal()
-        print("Use somente:\nLetras A–Z\nÇ\nEspaços.\n\nMatriz utilizada:")
+        print(f"{YELLOW}{'=' * 18} ATENÇÃO {'=' * 18}")
+        print(f"{BLUE}Caracteres permitidos: A–Z  |  Ç  |  Espaços")
+        print(f"{YELLOW}{'=' * 45}")
+        print(f"\nChave utilizada:{RESET} {key}\n{YELLOW}Matriz utilizada:{RESET} ")
         print_matrix(matrix)
-        message = input("Digite a mensagem (A–Z, Ç e espaços apenas): ").strip().upper()
+        message = input(f"\n{YELLOW}Digite a mensagem:{RESET} ").strip().upper()
         if validate_message(message):
             break
     
     encrypted = encrypt(message, matrix)
-    print(f"Mensagem criptografada: {encrypted}")
+    print(f"\n{PURPLE}Mensagem criptografada:{RESET} {encrypted}")
     
     decrypted = decrypt(encrypted, matrix)
-    print(f"Mensagem descriptografada: {decrypted}")
+    print(f"{PURPLE}Mensagem descriptografada:{RESET} {decrypted}")
+    print(f"{PURPLE}Chave utilizada:{YELLOW} {key} {RESET}")
 
 if __name__ == "__main__":
     main()

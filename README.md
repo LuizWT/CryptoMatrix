@@ -120,8 +120,10 @@
     </li>
     <li><strong>Saída:</strong> Retorna a mensagem original descriptografada.</li>
   </ul>
-  <br>
   <h4>3.5 Função <code>validate_message</code></h4>
+  <img src="https://github.com/user-attachments/assets/a074c118-72f7-4de0-b631-dd5814fa26b6"></img>
+  <br>
+  <br>
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>
@@ -143,8 +145,10 @@
       <strong>Saída:</strong> <code>bool</code> — <code>True</code> para mensagem válida; <code>False</code> caso haja qualquer outro caractere.
     </li>
   </ul>
+  <h4>3.6 Função <code>clear_terminal</code></h4>
+  <img src="https://github.com/user-attachments/assets/400165ca-ab23-4f2a-8be1-6f5199c1f52c"></img>
   <br>
-  <p>3.6 Função <code>clear_terminal</code></p>
+  <br>
   <p><strong>Objetivo e Funcionamento:</strong></p>
   <ul>
     <li>

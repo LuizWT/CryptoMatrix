@@ -2,12 +2,37 @@ import random
 import string
 
 def generate_matrix(key, size=7):
-    alphabet = list(string.ascii_uppercase + "Ç")
-    random.seed(key)  # Usa a chave para definir a semente do gerador de números aleatórios
-    while len(alphabet) < size * size:
-        alphabet += alphabet  # Preenche as 49 posições (7x7)
-    random.shuffle(alphabet)
-    matrix = [alphabet[i * size:(i + 1) * size] for i in range(size)]
+    # Alfabeto base (A-Z + Ç)
+    base_alphabet = list(string.ascii_uppercase + "Ç")
+    random.seed(key)  # Usa a chave para semente fixa
+
+    # Cria lista inicial garantindo pelo menos uma de cada letra
+    matrix_list = base_alphabet.copy()
+    # Preenche o restante com cópias do alfabeto até atingir size*size
+    while len(matrix_list) < size * size:
+        matrix_list += base_alphabet.copy()
+
+    # Embaralha e corta para o tamanho exato
+    random.shuffle(matrix_list)
+    matrix_list = matrix_list[: size * size]
+
+    # Garante que todas as letras estejam presentes
+    required = set(base_alphabet)
+    present = set(matrix_list)
+    missing = list(required - present)
+    if missing:
+        # Conta ocorrências para identificar duplicatas
+        from collections import Counter
+        counts = Counter(matrix_list)
+        # Posições de caracteres que aparecem mais de uma vez
+        duplicate_positions = [i for i, c in enumerate(matrix_list) if counts[c] > 1]
+        random.shuffle(duplicate_positions)
+        # Substitui duplicatas por cada letra faltante
+        for letter, pos in zip(missing, duplicate_positions):
+            matrix_list[pos] = letter
+
+    # Constrói a matriz 7x7
+    matrix = [matrix_list[i * size : (i + 1) * size] for i in range(size)]
     return matrix
 
 def print_matrix(matrix):

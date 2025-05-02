@@ -1,135 +1,216 @@
 import secrets
 import random
 import string
-import re
 import os
 import hmac
 import hashlib
 from hashlib import pbkdf2_hmac
+import math
 
+# Cores (ANSI) para terminal
 YELLOW = "\033[33m"
-BLUE = "\033[34m"
+BLUE   = "\033[34m"
 PURPLE = "\033[35m"
-RED = "\033[31m"
-RESET = "\033[0m"
+RED    = "\033[31m"
+RESET  = "\033[0m"
 
-# CSPRNG ( não determinístico)
-csprng = secrets.SystemRandom()
-
-VALID_PATTERN = r"[A-ZÇ ]+"
-
-BASE_ALPHABET = list(string.ascii_uppercase + "Ç ")
+# CSPRNG para escolhas aleatórias e que são seguras
+e_rng = secrets.SystemRandom()
 
 # Parâmetros PBKDF2 para key stretching
-PBKDF2_HASH = 'sha256'
+PBKDF2_HASH       = 'sha256'
 PBKDF2_ITERATIONS = 100_000
-KEY_LEN = 64  # bytes para permitir divisão em duas chaves
-SALT_LEN = 16  # bytes
+KEY_LEN           = 64 # Bytes para posteriormente se dividir em duas chaves de 32
+SALT_LEN          = 16 # Bytes para MAC
 
-# Usa duas chaves separadas (32 bytes cada) para matrix_seed e para mac_key
-def derive_keys(passphrase: str, salt_bytes: bytes) -> tuple[bytes, bytes]:
-    full_key = pbkdf2_hmac(PBKDF2_HASH, passphrase.encode(), salt_bytes, PBKDF2_ITERATIONS, dklen=KEY_LEN)
-    return full_key[:32], full_key[32:]
+# Caracteres
+t_BASE_UPPER = list(string.ascii_uppercase) + ['Ç'] # A-Z + Ç
+DIGITS       = list(string.digits) # 0-9
+BASE_LOWER   = list(string.ascii_lowercase) + ['ç'] # a-z + ç
+PUNCTUATION  = list(string.punctuation) # Caracteres especiais (ASCII)
+SYMBOLS      = t_BASE_UPPER + [' '] + DIGITS + BASE_LOWER + PUNCTUATION # Junta os caracteres citados acima (mais o caractere de espaço)
 
+# Número mínimo e máximo de células na matriz 3D
+MIN_CELLS = len(set(SYMBOLS)) # 97 símbolos (únicos)
+MAX_CELLS = 1000              # Evita consumo demais
 
+# Armazena ciphertext raw
+default_raw_ct = None
+
+# Deriva seed fixo para matriz a partir da passphrase
+def derive_matrix_seed(passphrase: str) -> bytes:
+    return hashlib.sha256(passphrase.encode('utf-8')).digest()
+
+# Deriva apenas o mac_key usando PBKDF2 (passphrase e salt)
+def derive_mac_key(passphrase: str, salt: bytes) -> bytes:
+    full = pbkdf2_hmac(
+        PBKDF2_HASH,
+        passphrase.encode('utf-8'),
+        salt,
+        PBKDF2_ITERATIONS,
+        dklen=KEY_LEN
+    )
+    return full[KEY_LEN//2:]
+
+# Valida se cada caractere está no conjunto SYMBOLS
 def validate_message(msg: str) -> bool:
-    return bool(re.fullmatch(VALID_PATTERN, msg))
+    return all(ch in SYMBOLS for ch in msg)
 
-
+# Limpa o terminal
 def clear_terminal():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-# Usa PRNG com seed derivada
-def generate_matrix(matrix_seed: bytes, size=7):
+# Calcula dimensões (depth, rows, cols) balanceadas e determinísticas
+def decide_dimensions(seed_int: int) -> tuple[int, int, int]:
+    random.seed(seed_int)
+    candidates = []
+    # L para cada dimensão (baseado no teto estipulado)
+    max_dim = int(math.ceil(MAX_CELLS ** (1/3)))
+    for d in range(1, max_dim + 1):
+        for r in range(1, max_dim + 1):
+            c = math.ceil(MIN_CELLS / (d * r))
+            if c < 1:
+                continue
+            total = d * r * c
+            if total >= MIN_CELLS and total <= MAX_CELLS:
+                candidates.append((d, r, c))
+    if not candidates:
+        # fallback simples
+        return 1, 1, MIN_CELLS
+    random.shuffle(candidates)
+    return candidates[0]
+
+# Gera matriz 3D com shuffle determinístico (matrix_seed)
+def generate_matrix(matrix_seed: bytes, depth: int, rows: int, cols: int) -> list[list[list[str]]]:
+    total = depth * rows * cols
+    if total < MIN_CELLS:
+        raise ValueError(f"Matriz deve ter ao menos {MIN_CELLS} células, mas tem {total}.")
+
+    # lista inicial de símbolos únicos
+    ml = SYMBOLS.copy()
+    # preenche extras (mas só se for necessário)
+    while len(ml) < total:
+        ml += SYMBOLS.copy()
+    ml = ml[:total]
+
+    # embaralha com seed determinístico
     seed_int = int.from_bytes(matrix_seed, 'big')
-    local_rng = random.Random(seed_int)
+    rng = random.Random(seed_int)
+    rng.shuffle(ml)
 
-    matrix_list = BASE_ALPHABET.copy()
-    while len(matrix_list) < size * size:
-        matrix_list += BASE_ALPHABET.copy()
-    matrix_list = matrix_list[: size * size]
-
-    local_rng.shuffle(matrix_list)
-
-    counts = {c: matrix_list.count(c) for c in set(BASE_ALPHABET)}
-    missing = [c for c, ct in counts.items() if ct == 0]
+    # garante que todos os símbolos aparecem
+    from collections import Counter
+    counts = Counter(ml)
+    missing = [s for s in SYMBOLS if counts[s] == 0]
     if missing:
-        from collections import Counter
-        dup_pos = [i for i, c in enumerate(matrix_list) if Counter(matrix_list)[c] > 1]
-        local_rng.shuffle(dup_pos)
-        for sym, pos in zip(missing, dup_pos):
-            matrix_list[pos] = sym
+        dup_positions = [i for i, s in enumerate(ml) if counts[s] > 1]
+        rng.shuffle(dup_positions)
+        for sym, pos in zip(missing, dup_positions):
+            counts[ml[pos]] -= 1
+            ml[pos] = sym
+            counts[sym] += 1
 
-    return [matrix_list[i*size:(i+1)*size] for i in range(size)]
+    # constrói a matriz 3D
+    matrix = []
+    it = iter(ml)
+    for _ in range(depth):
+        layer = []
+        for _ in range(rows):
+            row = [next(it) for _ in range(cols)]
+            layer.append(row)
+        matrix.append(layer)
+    return matrix
+
+# Imprime a matriz 3D por camadas
+def print_matrix(matrix: list[list[list[str]]]):
+    for d, layer in enumerate(matrix):
+        print(f"{BLUE}{'=' * 10} Camada {d} {'=' * 10}{RESET}\n")
+        col_header = "     " + " ".join(f"{i:>2}" for i in range(len(layer[0])))
+        print(f"{YELLOW}{col_header}{RESET}\n")
+        for r_idx, row in enumerate(layer):
+            row_str = " ".join(f"{ch:>2}" for ch in row)
+            print(f"{YELLOW}{r_idx:>2}:{RESET}  {row_str}")
+        print()
 
 
-def print_matrix(matrix):
-    for i, row in enumerate(matrix):
-        print(f"{BLUE}{i+1}:{RESET}", " ".join(row))
+# Gera raw_ct (string de coordenadas 6 dígitos por símbolo) e usa mac_key para HMAC
+def encrypt(msg: str, matrix: list[list[list[str]]], mac_key: bytes) -> tuple[str, str]:
+    global default_raw_ct
+    pos_map = {}
+    # mapeia cada símbolo às suas posições (d,r,c)
+    for d, layer in enumerate(matrix, start=0):
+        for r, row in enumerate(layer, start=0):
+            for c, ch in enumerate(row, start=0):
+                pos_map.setdefault(ch, []).append((d, r, c))
 
-
-def encrypt(message: str, matrix: list, mac_key: bytes) -> tuple[str, str]:
-    pos_full = {}
-    for i, row in enumerate(matrix):
-        for j, sym in enumerate(row):
-            pos_full.setdefault(sym, []).append((i+1, j+1))
-    pool = {s: lst.copy() for s, lst in pos_full.items()}
-
-    ct = ""
-    for ch in message:
+    pool = {ch: pos_map[ch].copy() for ch in pos_map}
+    raw = ''
+    for ch in msg:
+        if ch not in pool:
+            raise ValueError(f"Caractere inválido: '{ch}' não encontrado na matriz.")
         if not pool[ch]:
-            pool[ch] = pos_full[ch].copy()
-        r, c = csprng.choice(pool[ch])
-        ct += f"{r}{c}"
-        pool[ch].remove((r, c))
+            pool[ch] = pos_map[ch].copy()
+        d, r, c = e_rng.choice(pool[ch])
+        raw += f"{d:02}{r:02}{c:02}"
+        pool[ch].remove((d, r, c))
 
-    tag = hmac.new(mac_key, ct.encode(), hashlib.sha256).hexdigest()
-    return ct, tag # ciphertext e tag_hex
+    default_raw_ct = raw
+    display = raw.replace('0', '')  # Corta os zeros para exibição
+    tag = hmac.new(mac_key, raw.encode('utf-8'), hashlib.sha256).hexdigest()
+    return display, tag
 
-
-def decrypt(ciphertext: str, tag: str, matrix: list, mac_key: bytes) -> str:
-    expected = hmac.new(mac_key, ciphertext.encode(), hashlib.sha256).hexdigest()
+# Usa default_raw_ct para descriptografar (aqui inclui os zeros)
+def decrypt(ct: str, tag: str, matrix: list[list[list[str]]], mac_key: bytes) -> str:
+    raw = default_raw_ct
+    expected = hmac.new(mac_key, raw.encode('utf-8'), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, tag):
         raise ValueError("MAC inválido: dados alterados ou senha incorreta.")
 
-    pt = ""
-    i = 0
-    while i < len(ciphertext):
-        token = ciphertext[i:i+2]
-        r, c = int(token[0]) - 1, int(token[1]) - 1
-        pt += matrix[r][c]
-        i += 2
+    pt = ''
+    # cada símbolo usa 6 dígitos: 2 (d) + 2 (r) + 2 (c)
+    for i in range(0, len(raw), 6):
+        d = int(raw[i:i+2])
+        r = int(raw[i+2:i+4])
+        c = int(raw[i+4:i+6])
+        pt += matrix[d][r][c]
     return pt
-
 
 def main():
     clear_terminal()
     user_passphrase = input(f"{YELLOW}Digite a chave para gerar a matriz: {RESET}")
-    salt_bytes = secrets.token_bytes(SALT_LEN)
-    matrix_seed, mac_key = derive_keys(user_passphrase, salt_bytes)
 
-    matrix = generate_matrix(matrix_seed)
+    matrix_seed = derive_matrix_seed(user_passphrase)
+    seed_int = int.from_bytes(matrix_seed, 'big')
+    depth, rows, cols = decide_dimensions(seed_int)
+
+    salt = secrets.token_bytes(SALT_LEN)
+    mac_key = derive_mac_key(user_passphrase, salt)
+
+    matrix = generate_matrix(matrix_seed, depth, rows, cols)
+
     while True:
         clear_terminal()
         print(f"{YELLOW}{'='*10} ATENÇÃO {'='*9}")
-        print(f"{BLUE}Permitido: A–Z | Ç | espaço")
-        print(f"{YELLOW}{'='*28}")
+        print(f"{RED} Não permitido: caracteres fora do padrão ASCII e acentos{RESET}")
+        print(f"{YELLOW}{'='*28}\n")
+        print(f"Dimensões definidas: {depth}x{rows}x{cols} ( >= {MIN_CELLS} células)\n")
         print_matrix(matrix)
-        msg = input(f"\n{YELLOW}Mensagem: {RESET}").strip().upper()
-        if validate_message(msg): break
+        msg = input(f"\n{YELLOW}Mensagem: {RESET}").strip()
+        if validate_message(msg):
+            break
+        clear_terminal()
 
-    ct, tag = encrypt(msg, matrix, mac_key)
-    print(f"{PURPLE}Cifrado:{RESET}", ct)
+    display_ct, tag = encrypt(msg, matrix, mac_key)
+    print(f"{PURPLE}Cifrado:{RESET}", display_ct)
     print(f"{PURPLE}Tag (MAC):{RESET}", tag)
-    print(f"{PURPLE}Salt (HEX):{RESET}", salt_bytes.hex())
+    print(f"{PURPLE}Salt (hex):{RESET}", salt.hex())
 
     try:
-        pt = decrypt(ct, tag, matrix, mac_key)
+        pt = decrypt(None, tag, matrix, mac_key)
         print(f"\n{BLUE}Decifrado:{RESET}", pt)
+        print(f"\n{YELLOW}Chave (Passphrase):{RESET}", user_passphrase)
     except ValueError as e:
         print(f"{RED}Erro:{RESET}", e)
-    print(f"{BLUE}Chave (passphrase):{YELLOW}", user_passphrase)
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

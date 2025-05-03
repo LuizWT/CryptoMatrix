@@ -37,7 +37,7 @@
       </ul>
     </li>
     <li>
-      <strong>Conjunto de Símbolos:</strong> 95 símbolos ASCII imprimíveis, com a adição do espaço. Isso inclui: letras maiúsculas, minúsculas, números e caracteres especiais.
+      <strong>Conjunto de Símbolos:</strong> 95 símbolos ASCII imprimíveis (incluindo o espaço), com a adição dos caracteres <code>Ç</code> e <code>ç</code>.
     </li>
     <li>
       <strong>Validação de Mensagem:</strong> somente caracteres do conjunto acima são permitidos. Considere ver <code>validate_message()</code>.

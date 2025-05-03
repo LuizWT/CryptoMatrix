@@ -86,19 +86,19 @@ def generate_matrix(matrix_seed: bytes, depth: int, rows: int, cols: int) -> lis
     if total < MIN_CELLS:
         raise ValueError(f"Matriz deve ter ao menos {MIN_CELLS} células, mas tem {total}.")
 
-    # lista inicial de símbolos únicos
+    # Lista inicial de símbolos únicos
     ml = SYMBOLS.copy()
-    # preenche extras (mas só se for necessário)
+    # Preenche extras (mas só se for necessário)
     while len(ml) < total:
         ml += SYMBOLS.copy()
     ml = ml[:total]
 
-    # embaralha com seed determinístico
+    # Embaralha (rng.suffle) com seed determinístico
     seed_int = int.from_bytes(matrix_seed, 'big')
     rng = random.Random(seed_int)
     rng.shuffle(ml)
 
-    # garante que todos os símbolos aparecem
+    # garante que todos os símbolos apareçam
     from collections import Counter
     counts = Counter(ml)
     missing = [s for s in SYMBOLS if counts[s] == 0]

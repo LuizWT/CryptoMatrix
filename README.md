@@ -4,201 +4,194 @@
 <div class="section">
   <h3>1. Visão Geral</h3>
   <p>
-    Esse código implementa um sistema simples de criptografia e decriptação baseado na geração de uma matriz quadrada embaralhada contendo as letras do alfabeto (com acréscimo da letra <code>"Ç"</code>). A matriz é gerada de forma determinística a partir de uma chave compartilhada, permitindo que tanto a parte que criptografa quanto a parte que descriptografa possam reproduzir exatamente a mesma configuração.
-  </p>
-  <p>
-    Cada caractere da mensagem é representado pela posição (linha e coluna) em que ocorre na matriz. Quando um caractere se repete, uma posição diferente é escolhida para criptografia. Para os espaços, o sistema utiliza tokens especiais: cada token é formado por um prefixo aleatório (qualquer letra de A-Z, exceto <code>Ç</code>) seguido por dois dígitos aleatórios, facilitando sua identificação durante a decriptação.
+    Implementa um sistema de criptografia e decriptação baseado em uma matriz 3D determinística de símbolos ASCII imprimíveis.  
+    A matriz é gerada a partir de uma <em>passphrase</em> compartilhada, usando SHA‑256 para derivar a SEED e PBKDF2‑HMAC‑SHA256 para proteger a chave de autenticação (MAC).  
+    Cada caractere do texto é convertido em coordenadas (camada (dd), linha (rr), coluna (cc)) na matriz.  
   </p>
 </div>
 
 <div class="section">
   <h3>2. Dependências e Considerações</h3>
+</div>
+
+> [!NOTE]
+> Todas as dependências são nativas do Python.
+
+<div lass="section">
+  <img src="https://github.com/user-attachments/assets/81f5e4f1-82da-41de-a995-8471bbcaaa9e"></img>
+  <br />
+  <br />
   <ul>
     <li>
       <strong>Módulos Utilizados:</strong>
       <ul>
-        <li><code>random</code>: Para gerar números aleatórios e embaralhar a lista de caracteres.</li>
-        <li><code>string</code>: Para acessar a constante <code>ascii_uppercase</code>, que fornece as letras maiúsculas de A-Z.</li>
+        <li><code>secrets</code>, <code>random</code>, <code>string</code>, <code>os</code>, <code>math</code> para geração de números aleatórios, manipulação de terminal e cálculo de dimensões.</li>
+        <li><code>hashlib</code>, <code>hmac</code>, <code>hashlib.pbkdf2_hmac</code> — SHA‑256 e PBKDF2 para derivação de chaves e HMAC‑SHA256 para integridade.</li>
       </ul>
     </li>
     <li>
-      <strong>Uso da Chave:</strong> A chave fornecida pelo usuário é usada para definir a SEED do gerador de números aleatórios (<code>random.seed(key)</code>), garantindo que a matriz gerada seja a mesma para uma mesma chave em processos distintos.
-    </li>
-    <li>
-      <strong>Aplicações Reais:</strong>
+      <strong>Parâmetros Principais:</strong>
       <ul>
-        <li>Comunicação segura entre partes que compartilham uma chave secreta.</li>
-        <li>Criação de puzzles ou desafios de criptografia.</li>
-        <li>Implementações educacionais para introdução aos conceitos de substituição de caracteres e criptografia simétrica com matriz.</li>
+        <li><code>PBKDF2_ITERATIONS = 100 000</code>, <code>KEY_LEN = 64</code>, <code>SALT_LEN = 16</code> para configurações de PBKDF2 e tamanho de salt/MAC.</li>
+        <li><code>MIN_CELLS = 97</code> (número de símbolos únicos) e <code>MAX_CELLS = 1000</code> — limites para dimensão da matriz.</li>
       </ul>
+    </li>
+    <li>
+      <strong>Conjunto de Símbolos:</strong> 95 símbolos ASCII imprimíveis, com a adição do espaço. Isso inclui: letras maiúsculas, minúsculas, números e caracteres especiais.
+    </li>
+    <li>
+      <strong>Validação de Mensagem:</strong> somente caracteres do conjunto acima são permitidos. Considere ver <code>validate_message()</code>.
     </li>
   </ul>
 </div>
 
 <div class="section">
   <h3>3. Explicação Detalhada do Código</h3>
-  <h4>3.1 Função <code>generate_matrix</code></h4>
-  <img src="https://github.com/user-attachments/assets/4044dfbf-e091-42ed-ae93-e079350dd065"></img>
+
+  <h4>3.1 Função <code>derive_matrix_seed</code></h4>
+  <img src="https://github.com/user-attachments/assets/1c6de673-ee25-4deb-8a63-73186fc20bb6"></img>
   <br />
   <br />
-  <p><strong>Objetivo e Funcionamento:</strong></p>
+  <p><strong>Objetivo:</strong> derivar um SEED fixo para geração da matriz a partir da passphrase.</p>
   <ul>
-    <li>
-      <strong>Entrada:</strong> <code>key</code> (chave para definir o estado do gerador aleatório) e <code>size</code> (dimensão da matriz quadrada, padrão 7).
-    </li>
-    <li>
-      <strong>Processamento:</strong>
+    <li><strong>Entrada:</strong> <code>passphrase: str</code></li>
+    <li><strong>Processamento:</strong> SHA‑256 da passphrase (UTF‑8).</li>
+    <li><strong>Saída:</strong> <code>matrix_seed: bytes</code> (32 bytes)</li>
+  </ul>
+
+  <h4>3.2 Função <code>derive_mac_key</code></h4>
+  <img src="https://github.com/user-attachments/assets/d34886e5-fa61-4ad4-af41-6b43028e24ff"></img>
+  <br />
+  <br />
+  <p><strong>Objetivo:</strong> derivar a chave de autenticação (MAC) segura via PBKDF2.</p>
+  <ul>
+    <li><strong>Entrada:</strong> <code>passphrase: str</code>, <code>salt: bytes</code> (16 bytes)</li>
+    <li><strong>Processamento:</strong> PBKDF2‑HMAC‑SHA256 com <code>PBKDF2_ITERATIONS</code> e <code>dklen=KEY_LEN</code>, retorna a metade final dos bytes.</li>
+    <li><strong>Saída:</strong> <code>mac_key: bytes</code> (32 bytes)</li>
+  </ul>
+
+  <h4>3.3 Função <code>decide_dimensions</code></h4>
+  <img src="https://github.com/user-attachments/assets/40c374ea-683a-4794-934b-d03bc507ea9c"></img>
+  <br />
+  <br />
+  <p><strong>Objetivo:</strong> escolher dimensões (depth, rows, cols) para a matriz 3D de modo que <code>MIN_CELLS ≤ depth×rows×cols ≤ MAX_CELLS</code>.</p>
+  <ul>
+    <li><strong>Entrada:</strong> <code>seed_int: int</code> (inteiro derivado de <code>matrix_seed</code>).</li>
+    <li><strong>Processamento:</strong>
       <ol>
-        <li>Cria <code>base_alphabet</code> contendo letras A–Z e a letra <code>"Ç"</code>.</li>
-        <li>Define a semente do gerador aleatório com <code>random.seed(key)</code> para garantir determinismo.</li>
-        <li>Inicializa <code>matrix_list</code> com uma cópia de <code>base_alphabet</code>, assegurando ao menos uma de cada letra.</li>
-        <li>Duplica <code>base_alphabet</code> até que <code>matrix_list</code> tenha pelo menos <code>size×size</code> elementos.</li>
-        <li>Embaralha <code>matrix_list</code> e trunca para o tamanho exato de <code>size×size</code>.</li>
-        <li>Verifica letras faltantes em <code>matrix_list</code> e substitui posições duplicadas para garantir presença de todas as letras.</li>
-        <li>Divide <code>matrix_list</code> em sublistas de comprimento <code>size</code>, formando a matriz final.</li>
+        <li>Gera todos os candidatos (d,r,c) dentro dos limites.</li>
+        <li>Filtra aqueles com produto ≥ <code>MIN_CELLS</code> e ≤ <code>MAX_CELLS</code>.</li>
+        <li>Escolhe aleatoriamente um candidato usando <code>random.seed(seed_int)</code>.</li>
       </ol>
     </li>
-    <li>
-      <strong>Saída:</strong> Retorna a matriz gerada — uma lista de listas (<code>list[list[str]]</code>) com <code>size</code> linhas e <code>size</code> colunas.
-    </li>
+    <li><strong>Saída:</strong> tupla <code>(depth, rows, cols)</code></li>
   </ul>
-  <h4>3.2 Função <code>print_matrix</code></h4>
-  <img src="https://github.com/user-attachments/assets/815da89a-53bc-4311-b046-661ea9e91e37"></img>
+
+  <h4>3.4 Função <code>generate_matrix</code></h4>
+  <img src="https://github.com/user-attachments/assets/bc7cee86-3c88-4a02-8d25-114088cb48c6"></img>
   <br />
   <br />
-  <p><strong>Objetivo e Funcionamento:</strong></p>
+  <p><strong>Objetivo:</strong> construir a matriz 3D embaralhada de símbolos.</p>
   <ul>
-    <li>
-      <strong>Entrada:</strong> <code>matrix</code> (a matriz gerada).
-    </li>
-    <li>
-      <strong>Processamento:</strong> Percorre cada linha da matriz e imprime o número da linha e os caracteres, separados por espaços.
-    </li>
-    <li>
-      <strong>Saída:</strong> Exibição da matriz no console de forma organizada.
-    </li>
-  </ul>
-  <h4>3.3 Função <code>encrypt</code></h4>
-  <img src="https://github.com/user-attachments/assets/e430f69c-c1a6-4a87-aee0-381ed54e0e42"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo e Funcionamento:</strong></p>
-  <ul>
-    <li>
-      <strong>Entrada:</strong> <code>message</code> (mensagem a ser criptografada) e <code>matrix</code>.
-    </li>
-    <li>
-      <strong>Processamento:</strong>
+    <li><strong>Entrada:</strong> <code>matrix_seed: bytes</code>, <code>depth, rows, cols: int</code>.</li>
+    <li><strong>Processamento:</strong>
       <ol>
-        <li>Inicializa a string <code>encrypted</code>.</li>
-        <li>Constrói <code>positions_full</code> mapeando cada caractere da matriz para suas posições (linha, coluna).</li>
-        <li>Cria <code>positions_pool</code> como uma cópia de <code>positions_full</code> para gerenciar as posições usadas.</li>
-        <li>Para cada caractere da mensagem (em maiúsculas):
+        <li>Cria lista inicial <code>ml</code> com todos os <code>SYMBOLS</code>. Se necessário, repete até alcançar <code>depth×rows×cols</code> elementos.</li>
+        <li>Trunca <code>ml</code> ao tamanho exato e embaralha determinísticamente usando <code>random.Random(int.from_bytes(matrix_seed))</code>.</li>
+        <li>Garante presença de todos os símbolos: substitui duplicatas por símbolos faltantes.</li>
+        <li>Converte <code>ml</code> em estrutura 3D: listas de camadas, linhas e colunas.</li>
+      </ol>
+    </li>
+    <li><strong>Saída:</strong> <code>matrix: list[list[list[str]]]</code></li>
+  </ul>
+
+  <h4>3.5 Função <code>print_matrix</code></h4>
+  <img src="https://github.com/user-attachments/assets/6f04b848-637a-40c3-bbf0-fe9e733940d7"></img>
+  <br />
+  <br />
+  <p><strong>Objetivo:</strong> exibir cada camada da matriz no terminal.</p>
+  <ul>
+    <li><strong>Entrada:</strong> <code>matrix</code>.</li>
+    <li><strong>Processamento:</strong> para cada camada, imprime cabeçalho de colunas e linhas com ANSI colors.</li>
+    <li><strong>Saída:</strong> visualização formatada no console.</li>
+  </ul>
+
+  <h4>3.6 Função <code>encrypt</code></h4>
+  <img src="https://github.com/user-attachments/assets/60d3bf3a-411a-4fdf-96e6-d0da2bdd08d7"></img>
+  <br />
+  <br />
+  <p><strong>Objetivo:</strong> cifrar uma mensagem usando a matriz e gerar tag MAC.</p>
+  <ul>
+    <li><strong>Entrada:</strong> <code>msg: str</code>, <code>matrix</code>, <code>mac_key</code>.</li>
+    <li><strong>Processamento:</strong>
+      <ol>
+        <li>Mapeia cada símbolo da matriz às suas coordenadas (d,r,c).</li>
+        <li>Para cada caractere da mensagem:
           <ul>
-            <li>Se for espaço, gera um token com um prefixo aleatório (A-Z) e dois dígitos aleatórios (entre 11 e 77).</li>
-            <li>Para outros caracteres, seleciona e remove uma posição aleatória da pool; se esgotada, reinicializa a pool.</li>
+            <li>Escolhe coordenada aleatória não usada (pool) e concatena como 6 dígitos (“ddrrcc”).</li>
+            <li>Se pool esgotar, reinicializa para manter diversidade.</li>
           </ul>
         </li>
+        <li>Guarda <code>default_raw_ct</code> (com zeros) e gera <code>display_ct</code> (com corte de zeros).</li>
+        <li>Calcula HMAC‑SHA256 sobre <code>raw</code> com <code>mac_key</code>, produzindo <code>tag</code>.</li>
       </ol>
     </li>
-    <li>
-      <strong>Saída:</strong> Mensagem criptografada, composta por tokens representando as posições ou espaços.
-    </li>
+    <li><strong>Saída:</strong> <code>(display_ct: str, tag: str)</code></li>
   </ul>
-  <h4>3.4 Função <code>decrypt</code></h4>
-  <img src="https://github.com/user-attachments/assets/08554779-d3b0-445d-8734-1e40d47ebba9"></img>
+
+  <h4>3.7 Função <code>decrypt</code></h4>
+  <img src="https://github.com/user-attachments/assets/9ad56602-f16c-4cb5-b592-30671a9d0384"></img>
   <br />
   <br />
-  <p><strong>Objetivo e Funcionamento:</strong></p>
+  <p><strong>Objetivo:</strong> validar integridade e reconstruir o texto original.</p>
   <ul>
-    <li><strong>Entrada:</strong> <code>encrypted_text</code>: texto criptografado; <code>matrix</code>: matriz utilizada na criptografia.</li>
+    <li><strong>Entrada:</strong> <code>ct</code> (ignored), <code>tag: str</code>, <code>matrix</code>, <code>mac_key</code>.</li>
     <li><strong>Processamento:</strong>
-      <ul>
-        <li>Verifica, token por token, se representa um espaço (token de 3 caracteres) ou um caractere da matriz (token de 2 dígitos).</li>
-        <li>Converte os tokens de 2 dígitos em índices para recuperar o caractere correspondente da matriz.</li>
-      </ul>
-    </li>
-    <li><strong>Saída:</strong> Retorna a mensagem original descriptografada.</li>
-  </ul>
-  <h4>3.5 Função <code>validate_message</code></h4>
-  <img src="https://github.com/user-attachments/assets/a074c118-72f7-4de0-b631-dd5814fa26b6"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo e Funcionamento:</strong></p>
-  <ul>
-    <li>
-      <strong>Entrada:</strong> <code>msg</code> (Mensagem que será validada pela função antes de ser criptografada).
-    </li>
-    <li>
-      <strong>Processamento:</strong>
       <ol>
-        <li>Aplica <code>re.fullmatch(r"[A-ZÇ ]+", msg)</code> para verificar se <code>msg</code> contém apenas:</li>
-        <ul>
-          <li>Letras maiúsculas A–Z</li>
-          <li>Cedilha <code>Ç</code></li>
-          <li>Espaços</li>
-        </ul>
-        <li>Retorna <code>True</code> se corresponder ao padrão, caso contrário <code>False</code>.</li>
+        <li>Recalcula HMAC sobre <code>default_raw_ct</code> e compara com <code>tag</code>; falha se divergente.</li>
+        <li>Divide <code>raw</code> em blocos de 6 dígitos e converte em (d,r,c) para lookup na matriz.</li>
       </ol>
     </li>
-    <li>
-      <strong>Saída:</strong> <code>bool</code> — <code>True</code> para mensagem válida; <code>False</code> caso haja qualquer outro caractere.
-    </li>
+    <li><strong>Saída:</strong> mensagem original <code>str</code></li>
   </ul>
-  <h4>3.6 Função <code>clear_terminal</code></h4>
-  <img src="https://github.com/user-attachments/assets/400165ca-ab23-4f2a-8be1-6f5199c1f52c"></img>
+
+  <h4>3.8 Função <code>validate_message</code></h4>
+  <img src="https://github.com/user-attachments/assets/7479f7e0-a3cd-405f-a004-7002b9f34b75"></img>
   <br />
   <br />
-  <p><strong>Objetivo e Funcionamento:</strong></p>
+  <p><strong>Objetivo:</strong> garantir que a mensagem contenha apenas símbolos permitidos.</p>
   <ul>
-    <li>
-      <strong>Entrada:</strong> nenhuma.
-    </li>
-    <li>
-      <strong>Processamento:</strong>
-      <ol>
-        <li>Verifica o sistema operacional via <code>os.name</code>:</li>
-        <ul>
-          <li>Se for <code>'nt'</code>, executa <code>cls</code> (Windows).</li>
-          <li>Senão, executa <code>clear</code> (Linux/macOS).</li>
-        </ul>
-        <li>Chama <code>os.system</code> com o comando apropriado para limpar o terminal.</li>
-      </ol>
-    </li>
-    <li>
-      <strong>Saída:</strong> nenhuma (efeito colateral no terminal).
-    </li>
+    <li><strong>Entrada:</strong> <code>msg: str</code></li>
+    <li><strong>Processamento:</strong> verifica `all(ch in SYMBOLS)`.</li>
+    <li><strong>Saída:</strong> <code>bool</code></li>
   </ul>
-  <h4>3.7 Função <code>main</code></h4>
-  <img src="https://github.com/user-attachments/assets/65bfc2fa-2514-4e14-b96e-a9bee889cde3"></img>
+
+  <h4>3.9 Função <code>clear_terminal</code></h4>
+  <img src="https://github.com/user-attachments/assets/dbad6048-4b01-4bf7-a3b5-18b165b4f8df"></img>
   <br />
   <br />
-  <p><strong>Objetivo e Funcionamento:</strong></p>
+  <p><strong>Objetivo:</strong> limpar a tela do terminal.</p>
   <ul>
-    <li>Solicita a chave e gera a matriz determinística.</li>
-    <li>Exibe a matriz e solicita a mensagem a ser criptografada.</li>
-    <li>Criptografa a mensagem e exibe o resultado.</li>
-    <li>Descriptografa a mensagem e exibe a mensagem original.</li>
-    <li>O bloco <code>if __name__ == "__main__":</code> garante que a função <code>main</code> seja executada apenas quando o script for chamado diretamente.</li>
+    <li><strong>Entrada:</strong> nenhuma</li>
+    <li><strong>Processamento:</strong> Identifica o sistema operacional e executa o comando apropriado para limpar a tela.</li>
+    <li><strong>Saída:</strong> nenhuma</li>
+  </ul>
+
+  <h4>3.10 Função <code>main</code></h4>
+  <img src="https://github.com/user-attachments/assets/ef87c394-886e-4dc1-939b-5e14307e0d5c"></img>
+  <br />
+  <br />
+  <p><strong>Objetivo:</strong> orquestrar o fluxo de geração da matriz, criptografia e decriptação.</p>
+  <ul>
+    <li>Solicita passphrase, deriva <code>matrix_seed</code> e <code>mac_key</code>.</li>
+    <li>Decide dimensões e gera matriz.</li>
+    <li>Loop de input até mensagem válida.</li>
+    <li>Chama <code>encrypt</code>, exibe ciphertext, tag e salt.</li>
+    <li>Chama <code>decrypt</code> para demonstrar decriptação e exibe resultado.</li>
   </ul>
 </div>
 
-<div class="section">
-  <h3>4. Possíveis Aplicações em Cenários Reais</h3>
-  <ul>
-    <li><strong>Comunicação Segura:</strong> Permite o envio de mensagens criptografadas entre partes que compartilham uma chave secreta.</li>
-    <li><strong>Desafios e Puzzles:</strong> Pode ser adaptado para criar enigmas ou desafios onde os jogadores precisam descobrir a chave para interpretar uma mensagem oculta.</li>
-    <li><strong>Ensino:</strong> Ideal para uso didático, introduzindo conceitos de criptografia por substituição e uso de chaves compartilhadas.</li>
-  </ul>
-</div>
-
-<div class="section">
-  <h3>5. Observações Finais</h3>
-  <ul>
-    <li>A utilização de tokens especiais para espaços, com prefixos aleatórios (de A-Z), torna a mensagem criptografada menos previsível.</li>
-    <li>A reinicialização da pool de posições garante que mensagens com muitas repetições de um mesmo caractere possam ser criptografadas sem perder a diversidade de posições.</li>
-  </ul>
-</div>
+<hr />
 
 ### Instalação
 

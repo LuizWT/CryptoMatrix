@@ -64,7 +64,7 @@ def clear_terminal():
 def decide_dimensions(seed_int: int) -> tuple[int, int, int]:
     random.seed(seed_int)
     candidates = []
-    # L para cada dimensão (baseado no teto estipulado)
+    # Limite para cada dimensão (baseado no teto estipulado)
     max_dim = int(math.ceil(MAX_CELLS ** (1/3)))
     for d in range(1, max_dim + 1):
         for r in range(1, max_dim + 1):

@@ -1,220 +1,126 @@
-<h1>CryptoMatrix</h1>
-<h3>Sistema de Criptografia por Matriz com Chave Compartilhada</h3>
+# CryptoMatrix
 
-<div class="section">
-  <h3>1. Visão Geral</h3>
-  <p>
-    Implementa um sistema de criptografia e decriptação baseado em uma matriz 3D determinística de símbolos ASCII imprimíveis.  
-    A matriz é gerada a partir de uma <em>passphrase</em> compartilhada, usando SHA‑256 para derivar a SEED e PBKDF2‑HMAC‑SHA256 para proteger a chave de autenticação (MAC).  
-    Cada caractere do texto é convertido em coordenadas (camada (dd), linha (rr), coluna (cc)) na matriz.  
-  </p>
-</div>
+Cada caractere de uma mensagem é convertido nas coordenadas `(camada, linha, coluna)` de uma célula em uma matriz 3D de símbolos. A matriz é **permutada de novo a cada posição** a partir de um *keystream* derivado da *passphrase*, então o mesmo símbolo cai em coordenadas diferentes ao longo do texto.
 
-<div class="section">
-  <h3>2. Dependências e Considerações</h3>
-</div>
+> [!WARNING]
+> CryptoMatrix é um **projeto de estudo** e uma **construção própria, sem revisão externa/formal**. Para proteger dados sensíveis de verdade, prefira uma AEAD padrão (ChaCha20-Poly1305 ou AES-GCM) de uma biblioteca consagrada como a [`cryptography`](https://cryptography.io).
+
+---
+
+## Sumário
+
+- [Visão geral](#visão-geral)
+- [Como funciona](#como-funciona)
+- [Propriedades de segurança](#propriedades-de-segurança)
+- [Conjunto de símbolos](#conjunto-de-símbolos)
+- [Requisitos e instalação](#requisitos-e-instalação)
+- [Uso](#uso)
+- [Testes](#testes)
+- [Limitações](#limitações)
+- [Licença](#licença)
+
+---
+
+## Visão geral
+
+A ideia central é representar cada símbolo por **coordenadas** em uma matriz 3D em vez de por um valor fixo. Um símbolo pode ocupar mais de uma célula (**homofonia**), e a matriz não é fixa: a cada caractere da mensagem uma permutação nova das células é derivada de um *keystream*. Isso torna o esquema equivalente a uma cifra de fluxo — não existe um mapa fixo símbolo→coordenada que um atacante possa recuperar por análise de frequência.
+
+O ciphertext é autenticado, o comprimento da mensagem é ocultado por *padding*, e há proteção contra repetição (*replay*).
+
+## Como funciona
+
+```
+passphrase
+   │  scrypt(salt)                     derivação lenta e com salt
+   ▼
+master key ── HKDF ──► k_stream (cifra)   +   k_mac (autenticação)
+   │
+   │  para cada posição i da mensagem:
+   │     keystream(k_stream, nonce, i) gera uma PERMUTAÇÃO nova das células
+   │     o símbolo é escrito na coordenada correspondente nessa matriz
+   ▼
+token = base64url( cabeçalho | ciphertext | HMAC-SHA256 )
+        cabeçalho = MAGIC | versão | params do scrypt | salt | nonce | seq
+```
+
+## Propriedades de segurança
+
+| Propriedade | Mecanismo |
+|---|---|
+| Confidencialidade | matriz permutada por posição via *keystream* `HMAC-SHA256` (modo contador) |
+| Derivação de chave | `scrypt` com *salt* (memória-dura); parâmetros de custo gravados no token |
+| Separação de chaves | `HKDF-SHA256` deriva chaves distintas para cifra e MAC |
+| Integridade | `HMAC-SHA256` *encrypt-then-MAC* sobre cabeçalho + ciphertext + AAD |
+| Independência entre mensagens | *nonce* aleatório por mensagem |
+| Sigilo de tamanho | *padding* PADMÉ (esconde o comprimento exato) |
+| Anti-replay | contador `seq` autenticado + `ReplayGuard` (janela deslizante) no receptor |
+
+## Conjunto de símbolos
+
+97 símbolos: `A–Z` + `Ç`, espaço, `0–9`, `a–z` + `ç`, e a pontuação ASCII. Letras acentuadas além de `ç`/`Ç` (como `á`, `é`) **não** fazem parte do conjunto; mensagens com caracteres fora dele são rejeitadas com `ValueError`.
+
+## Requisitos e instalação
 
 > [!NOTE]
-> Todas as dependências são nativas do Python.
+> Somente biblioteca padrão do Python. Nenhuma dependência externa.
 
-<div lass="section">
-  <img src="https://github.com/user-attachments/assets/81f5e4f1-82da-41de-a995-8471bbcaaa9e"></img>
-  <br />
-  <br />
-  <ul>
-    <li>
-      <strong>Módulos Utilizados:</strong>
-      <ul>
-        <li><code>secrets</code>, <code>random</code>, <code>string</code>, <code>os</code>, <code>math</code> para geração de números aleatórios, manipulação de terminal e cálculo de dimensões.</li>
-        <li><code>hashlib</code>, <code>hmac</code>, <code>hashlib.pbkdf2_hmac</code> — SHA‑256 e PBKDF2 para derivação de chaves e HMAC‑SHA256 para integridade.</li>
-      </ul>
-    </li>
-    <li>
-      <strong>Parâmetros Principais:</strong>
-      <ul>
-        <li><code>PBKDF2_ITERATIONS = 100 000</code>, <code>KEY_LEN = 64</code>, <code>SALT_LEN = 16</code> para configurações de PBKDF2 e tamanho de salt/MAC.</li>
-        <li><code>MIN_CELLS = 97</code> (número de símbolos únicos) e <code>MAX_CELLS = 1000</code> — limites para dimensão da matriz.</li>
-      </ul>
-    </li>
-    <li>
-      <strong>Conjunto de Símbolos:</strong> 95 símbolos ASCII imprimíveis (incluindo o espaço), com a adição dos caracteres <code>Ç</code> e <code>ç</code>.
-    </li>
-    <li>
-      <strong>Validação de Mensagem:</strong> somente caracteres do conjunto acima são permitidos. Considere ver <code>validate_message()</code>.
-    </li>
-  </ul>
-</div>
+Requer **Python 3.8+** (usa `hashlib.scrypt`).
 
-<div class="section">
-  <h3>3. Explicação Detalhada do Código</h3>
+```bash
+git clone https://github.com/LuizWT/CryptoMatrix.git
+cd CryptoMatrix
+```
 
-  <h4>3.1 Função <code>derive_matrix_seed</code></h4>
-  <img src="https://github.com/user-attachments/assets/1c6de673-ee25-4deb-8a63-73186fc20bb6"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> derivar um SEED fixo para geração da matriz a partir da passphrase.</p>
-  <ul>
-    <li><strong>Entrada:</strong> <code>passphrase: str</code></li>
-    <li><strong>Processamento:</strong> SHA‑256 da passphrase (UTF‑8).</li>
-    <li><strong>Saída:</strong> <code>matrix_seed: bytes</code> (32 bytes)</li>
-  </ul>
+## Uso
 
-  <h4>3.2 Função <code>derive_mac_key</code></h4>
-  <img src="https://github.com/user-attachments/assets/d34886e5-fa61-4ad4-af41-6b43028e24ff"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> derivar a chave de autenticação (MAC) segura via PBKDF2.</p>
-  <ul>
-    <li><strong>Entrada:</strong> <code>passphrase: str</code>, <code>salt: bytes</code> (16 bytes)</li>
-    <li><strong>Processamento:</strong> PBKDF2‑HMAC‑SHA256 com <code>PBKDF2_ITERATIONS</code> e <code>dklen=KEY_LEN</code>, retorna a metade final dos bytes.</li>
-    <li><strong>Saída:</strong> <code>mac_key: bytes</code> (32 bytes)</li>
-  </ul>
+### Linha de comando
 
-  <h4>3.3 Função <code>decide_dimensions</code></h4>
-  <img src="https://github.com/user-attachments/assets/40c374ea-683a-4794-934b-d03bc507ea9c"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> escolher dimensões (depth, rows, cols) para a matriz 3D de modo que <code>MIN_CELLS ≤ depth×rows×cols ≤ MAX_CELLS</code>.</p>
-  <ul>
-    <li><strong>Entrada:</strong> <code>seed_int: int</code> (inteiro derivado de <code>matrix_seed</code>).</li>
-    <li><strong>Processamento:</strong>
-      <ol>
-        <li>Gera todos os candidatos (d,r,c) dentro dos limites.</li>
-        <li>Filtra aqueles com produto ≥ <code>MIN_CELLS</code> e ≤ <code>MAX_CELLS</code>.</li>
-        <li>Escolhe aleatoriamente um candidato usando <code>random.seed(seed_int)</code>.</li>
-      </ol>
-    </li>
-    <li><strong>Saída:</strong> tupla <code>(depth, rows, cols)</code></li>
-  </ul>
+```bash
+# demonstração: cifra, decifra e mostra a matriz da 1ª posição
+python3 cryptomatrix.py demo
 
-  <h4>3.4 Função <code>generate_matrix</code></h4>
-  <img src="https://github.com/user-attachments/assets/bc7cee86-3c88-4a02-8d25-114088cb48c6"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> construir a matriz 3D embaralhada de símbolos.</p>
-  <ul>
-    <li><strong>Entrada:</strong> <code>matrix_seed: bytes</code>, <code>depth, rows, cols: int</code>.</li>
-    <li><strong>Processamento:</strong>
-      <ol>
-        <li>Cria lista inicial <code>ml</code> com todos os <code>SYMBOLS</code>. Se necessário, repete até alcançar <code>depth×rows×cols</code> elementos.</li>
-        <li>Trunca <code>ml</code> ao tamanho exato e embaralha determinísticamente usando <code>random.Random(int.from_bytes(matrix_seed))</code>.</li>
-        <li>Garante presença de todos os símbolos: substitui duplicatas por símbolos faltantes.</li>
-        <li>Converte <code>ml</code> em estrutura 3D: listas de camadas, linhas e colunas.</li>
-      </ol>
-    </li>
-    <li><strong>Saída:</strong> <code>matrix: list[list[list[str]]]</code></li>
-  </ul>
+# calibra o custo do scrypt para ~0,1 s nesta máquina
+python3 cryptomatrix.py calibrate
 
-  <h4>3.5 Função <code>print_matrix</code></h4>
-  <img src="https://github.com/user-attachments/assets/6f04b848-637a-40c3-bbf0-fe9e733940d7"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> exibir cada camada da matriz no terminal.</p>
-  <ul>
-    <li><strong>Entrada:</strong> <code>matrix</code>.</li>
-    <li><strong>Processamento:</strong> para cada camada, imprime cabeçalho de colunas e linhas com ANSI colors.</li>
-    <li><strong>Saída:</strong> visualização formatada no console.</li>
-  </ul>
+# cifrar / decifrar (a senha é pedida sem exibir)
+python3 cryptomatrix.py enc -m "reuniao as quinze horas" --seq 1
+python3 cryptomatrix.py dec -t "<token>"
+```
 
-  <h4>3.6 Função <code>encrypt</code></h4>
-  <img src="https://github.com/user-attachments/assets/60d3bf3a-411a-4fdf-96e6-d0da2bdd08d7"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> cifrar uma mensagem usando a matriz e gerar tag MAC.</p>
-  <ul>
-    <li><strong>Entrada:</strong> <code>msg: str</code>, <code>matrix</code>, <code>mac_key</code>.</li>
-    <li><strong>Processamento:</strong>
-      <ol>
-        <li>Mapeia cada símbolo da matriz às suas coordenadas (d,r,c).</li>
-        <li>Para cada caractere da mensagem:
-          <ul>
-            <li>Escolhe coordenada aleatória não usada (pool) e concatena como 6 dígitos (“ddrrcc”).</li>
-            <li>Se pool esgotar, reinicializa para manter diversidade.</li>
-          </ul>
-        </li>
-        <li>Guarda <code>default_raw_ct</code> (com zeros) e gera <code>display_ct</code> (com corte de zeros).</li>
-        <li>Calcula HMAC‑SHA256 sobre <code>raw</code> com <code>mac_key</code>, produzindo <code>tag</code>.</li>
-      </ol>
-    </li>
-    <li><strong>Saída:</strong> <code>(display_ct: str, tag: str)</code></li>
-  </ul>
+### Como biblioteca
 
-  <h4>3.7 Função <code>decrypt</code></h4>
-  <img src="https://github.com/user-attachments/assets/9ad56602-f16c-4cb5-b592-30671a9d0384"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> validar integridade e reconstruir o texto original.</p>
-  <ul>
-    <li><strong>Entrada:</strong> <code>ct</code> (ignored), <code>tag: str</code>, <code>matrix</code>, <code>mac_key</code>.</li>
-    <li><strong>Processamento:</strong>
-      <ol>
-        <li>Recalcula HMAC sobre <code>default_raw_ct</code> e compara com <code>tag</code>; falha se divergente.</li>
-        <li>Divide <code>raw</code> em blocos de 6 dígitos e converte em (d,r,c) para lookup na matriz.</li>
-      </ol>
-    </li>
-    <li><strong>Saída:</strong> mensagem original <code>str</code></li>
-  </ul>
+```python
+import cryptomatrix as cm
 
-  <h4>3.8 Função <code>validate_message</code></h4>
-  <img src="https://github.com/user-attachments/assets/7479f7e0-a3cd-405f-a004-7002b9f34b75"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> garantir que a mensagem contenha apenas símbolos permitidos.</p>
-  <ul>
-    <li><strong>Entrada:</strong> <code>msg: str</code></li>
-    <li><strong>Processamento:</strong> verifica `all(ch in SYMBOLS)`.</li>
-    <li><strong>Saída:</strong> <code>bool</code></li>
-  </ul>
+# remetente — persista o contador entre execuções
+snd = cm.SenderState(start=0)
+token = cm.encrypt("senha-forte", "transferir 500 para a conta 42", seq=snd.next())
 
-  <h4>3.9 Função <code>clear_terminal</code></h4>
-  <img src="https://github.com/user-attachments/assets/dbad6048-4b01-4bf7-a3b5-18b165b4f8df"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> limpar a tela do terminal.</p>
-  <ul>
-    <li><strong>Entrada:</strong> nenhuma</li>
-    <li><strong>Processamento:</strong> Identifica o sistema operacional e executa o comando apropriado para limpar a tela.</li>
-    <li><strong>Saída:</strong> nenhuma</li>
-  </ul>
+# receptor — persista a ReplayGuard por sessão/remetente
+guard = cm.ReplayGuard(window=64)
+msg = cm.decrypt("senha-forte", token, guard=guard)
+# levanta ValueError em senha errada, token adulterado ou replay
+```
 
-  <h4>3.10 Função <code>main</code></h4>
-  <img src="https://github.com/user-attachments/assets/ef87c394-886e-4dc1-939b-5e14307e0d5c"></img>
-  <br />
-  <br />
-  <p><strong>Objetivo:</strong> orquestrar o fluxo de geração da matriz, criptografia e decriptação.</p>
-  <ul>
-    <li>Solicita passphrase, deriva <code>matrix_seed</code> e <code>mac_key</code>.</li>
-    <li>Decide dimensões e gera matriz.</li>
-    <li>Loop de input até mensagem válida.</li>
-    <li>Chama <code>encrypt</code>, exibe ciphertext, tag e salt.</li>
-    <li>Chama <code>decrypt</code> para demonstrar decriptação e exibe resultado.</li>
-  </ul>
-</div>
+## Testes
 
-<hr />
+```bash
+python3 test_cryptomatrix.py
+```
 
-### Instalação
+Cobre correção (`decrypt(encrypt(m)) == m`), integridade, sigilo de tamanho, anti-replay e uma bateria de ataques (análise de frequência, texto conhecido, reuso de chave), demonstrando que não recuperam o plaintext.
 
-> [!IMPORTANT]  
-> Requer Python 3.6 ou superior para garantir compatibilidade total com os recursos utilizados no código
+## Limitações
 
-Clone o repositório:
+- Construção própria, **sem revisão externa/formal**.
+- O *padding* esconde o tamanho exato, mas não o **tamanho aproximado** (quantizado).
+- `SenderState` e `ReplayGuard` precisam ser **persistidos** pelo chamador; sem isso, não há garantia anti-replay.
+- Implementação didática em Python puro — não é *hardened* contra ataques de canal lateral (*timing*, etc.).
 
-    git clone https://github.com/seu-usuario/CryptoMatrix.git
+## Licença
 
-Acesse o diretório:
+GNU Affero General Public License v3.0 (Modificada). Veja [`LICENSE`](LICENSE).
 
-    cd CryptoMatrix/
+## Contribuição
 
-Execute a ferramenta:
-
-    python3 cryptoMatrix.py
-<hr />
-
-## Apoio ao Projeto
-
-Se você quiser contribuir com o projeto, sinta-se à vontade para abrir Issues ou fazer Pull Requests.
-  
-<hr />
-
-Este projeto está licenciado sob a GNU Affero General Public License v3.0 (Modificada)
+Issues e Pull Requests são bem-vindos.
